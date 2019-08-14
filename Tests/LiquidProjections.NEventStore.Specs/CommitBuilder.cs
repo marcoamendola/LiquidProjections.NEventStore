@@ -14,7 +14,7 @@ namespace LiquidProjections.NEventStore.Specs
         private string streamId = Guid.NewGuid().ToString();
         private int sequence = ++nextSequence;
         private static int nextSequence = 1;
-        private string checkpointToken = "1";
+        private long checkpoint = 1;
         private Guid commitId = Guid.NewGuid();
 
         protected override Commit OnBuild()
@@ -27,8 +27,8 @@ namespace LiquidProjections.NEventStore.Specs
                 });
             }
 
-            long streamRevision = events.Max(e => ((Event) e.Body).Version);
-            return new Commit("default", streamId, (int) streamRevision, commitId, sequence, timeStamp, checkpointToken,
+            long streamRevision = events.Max(e => ((Event)e.Body).Version);
+            return new Commit("default", streamId, (int)streamRevision, commitId, sequence, timeStamp, checkpoint,
                 new Dictionary<string, object>(), events);
         }
 
@@ -81,15 +81,9 @@ namespace LiquidProjections.NEventStore.Specs
             return this;
         }
 
-        public CommitBuilder WithCheckpoint(string checkpointToken)
-        {
-            this.checkpointToken = checkpointToken;
-            return this;
-        }
-
         public CommitBuilder WithCheckpoint(long checkpoint)
         {
-            checkpointToken = checkpoint.ToString();
+            this.checkpoint = checkpoint;
             return this;
         }
 

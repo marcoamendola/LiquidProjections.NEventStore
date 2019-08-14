@@ -66,7 +66,7 @@ namespace LiquidProjections.NEventStore
         public IEnumerable<Transaction> GetFrom(long? checkpoint)
         {
             return streamPersister
-                .GetFrom((!checkpoint.HasValue || checkpoint == 0) ? null : checkpoint.ToString())
+                .GetFrom(checkpoint ?? 0)
                 .Select(ToTransaction);
         }
 
@@ -76,7 +76,7 @@ namespace LiquidProjections.NEventStore
             {
                 Id = commit.CommitId.ToString(),
                 StreamId = commit.StreamId,
-                Checkpoint = long.Parse(commit.CheckpointToken),
+                Checkpoint = commit.CheckpointToken,
                 TimeStampUtc = commit.CommitStamp,
                 Events = new List<EventEnvelope>(commit.Events.Select(@event => new EventEnvelope
                 {

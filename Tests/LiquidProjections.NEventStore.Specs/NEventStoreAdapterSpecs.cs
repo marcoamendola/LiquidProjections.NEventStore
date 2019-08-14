@@ -26,11 +26,11 @@ namespace LiquidProjections.NEventStore.Specs
             {
                 Given(() =>
                 {
-                    UseThe((ICommit) new CommitBuilder().WithCheckpoint("123").Build());
+                    UseThe((ICommit)new CommitBuilder().WithCheckpoint(123).Build());
 
                     var eventStore = A.Fake<IPersistStreams>();
-                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new[] {The<ICommit>()});
-                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Throws(new ApplicationException()).Once();
+                    A.CallTo(() => eventStore.GetFrom(A<long>.Ignored)).Returns(new[] { The<ICommit>() });
+                    A.CallTo(() => eventStore.GetFrom(A<long>.Ignored)).Throws(new ApplicationException()).Once();
 
                     var adapter = new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => DateTime.UtcNow);
 
@@ -73,10 +73,10 @@ namespace LiquidProjections.NEventStore.Specs
             {
                 Given(() =>
                 {
-                    UseThe((ICommit) new CommitBuilder().WithCheckpoint("123").Build());
+                    UseThe((ICommit)new CommitBuilder().WithCheckpoint(123).Build());
 
                     var eventStore = A.Fake<IPersistStreams>();
-                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new[] {The<ICommit>()});
+                    A.CallTo(() => eventStore.GetFrom(0)).Returns(new[] { The<ICommit>() });
 
                     var adapter = new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => DateTime.UtcNow);
 
@@ -105,7 +105,7 @@ namespace LiquidProjections.NEventStore.Specs
 
                 var commit = The<ICommit>();
                 actualTransaction.Id.Should().Be(commit.CommitId.ToString());
-                actualTransaction.Checkpoint.Should().Be(long.Parse(commit.CheckpointToken));
+                actualTransaction.Checkpoint.Should().Be(commit.CheckpointToken);
                 actualTransaction.TimeStampUtc.Should().Be(commit.CommitStamp);
                 actualTransaction.StreamId.Should().Be(commit.StreamId);
 
@@ -122,7 +122,7 @@ namespace LiquidProjections.NEventStore.Specs
                 Given(() =>
                 {
                     var eventStore = A.Fake<IPersistStreams>();
-                    A.CallTo(() => eventStore.GetFrom("999")).Returns(new ICommit[0]);
+                    A.CallTo(() => eventStore.GetFrom(999)).Returns(new ICommit[0]);
 
                     var adapter = new NEventStoreAdapter(eventStore, 11, 1.Seconds(), 100, () => DateTime.UtcNow);
 
@@ -167,15 +167,14 @@ namespace LiquidProjections.NEventStore.Specs
                 {
                     var streamPersister = A.Fake<IPersistStreams>();
 
-                    A.CallTo(() => streamPersister.GetFrom(A<string>.Ignored)).ReturnsLazily<IEnumerable<ICommit>, string>(checkpointToken =>
+                    A.CallTo(() => streamPersister.GetFrom(A<long>.Ignored)).ReturnsLazily<IEnumerable<ICommit>, long>(checkPoint =>
                     {
-                        pollingTimeStamps.Add(new PollingCall(checkpointToken, DateTime.UtcNow));
+                        pollingTimeStamps.Add(new PollingCall(checkPoint, DateTime.UtcNow));
                         if (pollingTimeStamps.Count == 4)
                         {
                             pollingCompleted.SetResult(true);
                         }
 
-                        long checkPoint = (checkpointToken != null) ? long.Parse(checkpointToken) : 0;
                         long offsetToDetectAheadSubscriber = 1;
 
                         if (checkPoint <= (subscriptionCheckpoint - offsetToDetectAheadSubscriber))
@@ -212,19 +211,19 @@ namespace LiquidProjections.NEventStore.Specs
                 PollingCall lastCall = pollingTimeStamps.Last();
 
                 lastCall.TimeStampUtc.Should().BeAtLeast(pollingInterval).After(lastButOneCall.TimeStampUtc);
-                lastCall.CheckpointToken.Should().Be(lastButOneCall.CheckpointToken);
+                lastCall.Checkpoint.Should().Be(lastButOneCall.Checkpoint);
             }
         }
 
         internal class PollingCall
         {
-            public PollingCall(string checkpointToken, DateTime timeStampUtc)
+            public PollingCall(long checkpoint, DateTime timeStampUtc)
             {
-                CheckpointToken = checkpointToken;
+                Checkpoint = checkpoint;
                 TimeStampUtc = timeStampUtc;
             }
 
-            public string CheckpointToken { get; set; }
+            public long Checkpoint { get; set; }
             public DateTime TimeStampUtc { get; set; }
         }
 
@@ -236,12 +235,12 @@ namespace LiquidProjections.NEventStore.Specs
             {
                 Given(() =>
                 {
-                    ICommit projectedCommit = new CommitBuilder().WithCheckpoint("123").Build();
-                    ICommit unprojectedCommit = new CommitBuilder().WithCheckpoint("124").Build();
+                    ICommit projectedCommit = new CommitBuilder().WithCheckpoint(123).Build();
+                    ICommit unprojectedCommit = new CommitBuilder().WithCheckpoint(124).Build();
 
                     var eventStore = A.Fake<IPersistStreams>();
-                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new[] {projectedCommit, unprojectedCommit});
-                    A.CallTo(() => eventStore.GetFrom("123")).Returns(new[] {unprojectedCommit});
+                    A.CallTo(() => eventStore.GetFrom(A<long>.Ignored)).Returns(new[] { projectedCommit, unprojectedCommit });
+                    A.CallTo(() => eventStore.GetFrom(123)).Returns(new[] { unprojectedCommit });
 
                     var adapter = new NEventStoreAdapter(eventStore, 11, 1.Seconds(), 100, () => DateTime.UtcNow);
                     WithSubject(_ => adapter.Subscribe);
@@ -279,7 +278,7 @@ namespace LiquidProjections.NEventStore.Specs
                 Given(() =>
                 {
                     var eventStore = A.Fake<IPersistStreams>();
-                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new ICommit[0]);
+                    A.CallTo(() => eventStore.GetFrom(A<long>.Ignored)).Returns(new ICommit[0]);
 
                     WithSubject(_ => new NEventStoreAdapter(eventStore, 11, 500.Milliseconds(), 100, () => utcNow));
 
@@ -313,7 +312,7 @@ namespace LiquidProjections.NEventStore.Specs
                 Given(() =>
                 {
                     var eventStore = A.Fake<IPersistStreams>();
-                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new ICommit[0]);
+                    A.CallTo(() => eventStore.GetFrom(A<long>.Ignored)).Returns(new ICommit[0]);
 
                     WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => utcNow));
 
@@ -353,13 +352,9 @@ namespace LiquidProjections.NEventStore.Specs
                 Given(() =>
                 {
                     eventStore = A.Fake<IPersistStreams>();
-                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).ReturnsLazily(call =>
+                    A.CallTo(() => eventStore.GetFrom(A<long>.Ignored)).ReturnsLazily(call =>
                     {
-                        string checkpointString = call.GetArgument<string>(0);
-
-                        long checkpoint = string.IsNullOrEmpty(checkpointString)
-                            ? 0
-                            : long.Parse(checkpointString, CultureInfo.InvariantCulture);
+                        long checkpoint = call.GetArgument<long>(0);
 
                         aSubscriptionStartedLoading.Set();
 
@@ -373,7 +368,7 @@ namespace LiquidProjections.NEventStore.Specs
 
                         return checkpoint > 0
                             ? new ICommit[0]
-                            : new ICommit[] {new CommitBuilder().WithCheckpoint("1").Build()};
+                            : new ICommit[] { new CommitBuilder().WithCheckpoint(1).Build() };
                     });
 
                     var adapter = new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => DateTime.UtcNow);
